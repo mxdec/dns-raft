@@ -2,7 +2,6 @@ package server
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -34,11 +33,11 @@ func TCPHandler(conn net.Conn, store *store.Store) {
 func (c *TCPConn) handleRequest() {
 	input, err := bufio.NewReader(c.conn).ReadString('\n')
 	if err != nil {
-		fmt.Println("Error reading:", err.Error())
+		c.logger.Println("error reading:", err.Error())
 		return
 	}
 	tmp := strings.TrimSpace(string(input))
-	c.logger.Printf("read |%s| from input", tmp)
+	c.logger.Printf("new tcp msg: %s\n", tmp)
 
 	// trim spaces
 	cmd := strings.Fields(tmp)

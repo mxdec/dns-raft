@@ -21,10 +21,7 @@ func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	msg.SetReply(r)
 	d.logger.Printf("incoming DNS request from %s", w.RemoteAddr().String())
-	// key := fmt.Sprintf("%s_%d", r.Header().Name, rr.Header().Rrtype)
 	key := fmt.Sprintf("%s_%d", r.Question[0].Name, r.Question[0].Qtype)
-	// switch r.Question[0].Qtype {
-	// case dns.TypeA:
 	msg.Authoritative = true
 	v, ok := d.kvs.Get(key)
 	if ok {
@@ -32,7 +29,6 @@ func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			msg.Answer = append(msg.Answer, rr)
 		}
 	}
-	// }
 	w.WriteMsg(&msg)
 }
 
@@ -51,7 +47,10 @@ func InitDNS(kvs *store.Store, dnsAddr, zoneFile string) {
 	if len(zoneFile) > 0 {
 		select {
 		case <-kvs.LeaderCh():
-			ld := zoneSeeder{kvs: kvs}
+			ld := zoneSeeder{
+				kvs:    kvs,
+				logger: log.New(os.Stderr, "", log.LstdFlags),
+			}
 			ld.loadZone(zoneFile)
 		case <-time.After(5 * time.Second):
 			log.Println("zonefile: error, not leader")
@@ -67,7 +66,8 @@ func InitDNS(kvs *store.Store, dnsAddr, zoneFile string) {
 }
 
 type zoneSeeder struct {
-	kvs *store.Store
+	kvs    *store.Store
+	logger *log.Logger
 }
 
 // LoadZone iterates over entries in the zonefile and creates
@@ -76,7 +76,7 @@ type zoneSeeder struct {
 func (z *zoneSeeder) loadZone(zoneFile string) {
 	f, err := os.Open(zoneFile)
 	if err != nil {
-		log.Printf("zonefile: error, %v", err)
+		z.logger.Printf("zonefile: error, %v", err)
 		return
 	}
 	defer f.Close()
@@ -86,12 +86,12 @@ func (z *zoneSeeder) loadZone(zoneFile string) {
 		key := fmt.Sprintf("%s_%d", rr.Header().Name, rr.Header().Rrtype)
 		// store the serialized record
 		if err := z.kvs.Set(key, rr.String()); err != nil {
-			log.Printf("error storing record: %v", err)
+			z.logger.Printf("error storing record: %v", err)
 			continue
 		}
-		log.Printf("stored: %s\n", rr.String())
+		z.logger.Printf("stored: %s\n", rr.String())
 	}
 	if err := zp.Err(); err != nil {
-		log.Printf("error reading zone file: %v", err)
+		z.logger.Printf("error reading zone file: %v", err)
 	}
 }

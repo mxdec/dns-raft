@@ -29,7 +29,8 @@ func InitTCP(kvs *store.Store, tcpAddr string) {
 	tcp.kvs = kvs
 	tcp.lst, err = net.Listen("tcp", tcpAddr)
 	if err != nil {
-		tcp.logger.Printf("Failed to set TCP listener %s", err.Error())
+		tcp.logger.Printf("Failed to set TCP listener %v", err)
+		return
 	}
 	// accept connections
 	go func() {
@@ -40,7 +41,6 @@ func InitTCP(kvs *store.Store, tcpAddr string) {
 				tcp.logger.Printf("could't accept client, err: %v", err)
 				continue
 			}
-			// handle conn
 			TCPHandler(conn, tcp.kvs)
 		}
 	}()
