@@ -45,6 +45,8 @@ $ bin/dns-raft -id id3 \
 
 ## DNS
 
+Resources records are loaded from [zone file](zones/zone.txt) at execution.
+
 Resolve address from first node:
 ```
 $ dig @127.0.0.1 -p 5450 example.com
@@ -58,11 +60,6 @@ $ dig @127.0.0.1 -p 5451 example.com
 Resolve address from third node:
 ```
 $ dig @127.0.0.1 -p 5452 example.com
-```
-
-Get value from TCP:
-```
-$ echo "get example.com" | nc localhost 5370
 ```
 
 ## Play with KV Store
