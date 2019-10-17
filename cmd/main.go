@@ -6,8 +6,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/maxdcr/pagesjaunes/server"
-	"github.com/maxdcr/pagesjaunes/store"
+	"github.com/maxdcr/dns-raft/server"
+	"github.com/maxdcr/dns-raft/store"
 )
 
 var (

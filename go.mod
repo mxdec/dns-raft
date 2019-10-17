@@ -1,4 +1,4 @@
-module github.com/maxdcr/pagesjaunes
+module github.com/maxdcr/dns-raft
 
 go 1.12
 

@@ -5,7 +5,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/maxdcr/pagesjaunes/store"
+	"github.com/maxdcr/dns-raft/store"
 )
 
 // TCPServer contains TCP Listener

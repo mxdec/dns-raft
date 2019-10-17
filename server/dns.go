@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/maxdcr/pagesjaunes/store"
+	"github.com/maxdcr/dns-raft/store"
 	"github.com/miekg/dns"
 )
 

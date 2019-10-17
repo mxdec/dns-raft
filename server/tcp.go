@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/maxdcr/pagesjaunes/store"
+	"github.com/maxdcr/dns-raft/store"
 )
 
 // TCPConn contains incoming connexion and command with args
