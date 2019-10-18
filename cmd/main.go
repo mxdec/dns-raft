@@ -20,8 +20,8 @@ var (
 )
 
 func init() {
-	flag.StringVar(&tcpaddr, "tcp.addr", ":5370", "TCP listen address")
-	flag.StringVar(&dnsaddr, "dns.addr", ":5354", "DNS listen address")
+	flag.StringVar(&tcpaddr, "tcp.addr", ":8080", "TCP listen address")
+	flag.StringVar(&dnsaddr, "dns.addr", ":5350", "DNS listen address")
 	flag.StringVar(&raftaddr, "raft.addr", ":15370", "Raft bus transport bind address")
 	flag.StringVar(&raftjoin, "raft.join", "", "Join to already exist cluster")
 	flag.StringVar(&raftid, "id", "", "node id")

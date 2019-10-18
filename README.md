@@ -16,8 +16,8 @@ $ go build -o bin/dns-raft cmd/main.go
 Start first node:
 ```
 $ bin/dns-raft -id id1 \
-               -tcp.addr ":5370" \
-               -dns.addr ":5450" \
+               -tcp.addr ":8080" \
+               -dns.addr ":5350" \
                -raft.addr ":15370" \
                -zone.file "./zones/zone.txt"
 ```
@@ -25,19 +25,19 @@ $ bin/dns-raft -id id1 \
 Start second node:
 ```
 $ bin/dns-raft -id id2 \
-               -tcp.addr ":5371" \
-               -dns.addr ":5451" \
+               -tcp.addr ":8081" \
+               -dns.addr ":5351" \
                -raft.addr ":15371" \
-               -raft.join "127.0.0.1:5370"
+               -raft.join "127.0.0.1:8080"
 ```
 
 Start third node:
 ```
 $ bin/dns-raft -id id3 \
-               -tcp.addr ":5372" \
-               -dns.addr ":5452" \
+               -tcp.addr ":8082" \
+               -dns.addr ":5352" \
                -raft.addr ":15372" \
-               -raft.join "127.0.0.1:5370"
+               -raft.join "127.0.0.1:8080"
 ```
 
 ## DNS
@@ -46,46 +46,46 @@ Resources records are loaded from [zone file](zones/zone.txt) at execution.
 
 Resolve address from first node:
 ```
-$ dig @127.0.0.1 -p 5450 example.com
+$ dig @127.0.0.1 -p 5350 example.com
 ```
 
 Resolve address from second node:
 ```
-$ dig @127.0.0.1 -p 5451 example.com
+$ dig @127.0.0.1 -p 5351 example.com
 ```
 
 Resolve address from third node:
 ```
-$ dig @127.0.0.1 -p 5452 example.com
+$ dig @127.0.0.1 -p 5352 example.com
 ```
 
 ## Play with KV Store
 
 Ping the first node:
 ```
-$ echo "ping" | nc localhost 5370
+$ echo "ping" | nc localhost 8080
 PONG
 ```
 
 Add a key:
 ```
-$ echo "set toto titi" | nc localhost 5370
+$ echo "set toto titi" | nc localhost 8080
 SUCCESS
 ```
 
 Get a key from any node:
 ```
-$ echo "get toto" | nc localhost 5370
+$ echo "get toto" | nc localhost 8080
 titi
-$ echo "get toto" | nc localhost 5371
+$ echo "get toto" | nc localhost 8081
 titi
-$ echo "get toto" | nc localhost 5372
+$ echo "get toto" | nc localhost 8082
 titi
 ```
 
 Remove the key:
 ```
-$ echo "del toto" | nc localhost 5370
+$ echo "del toto" | nc localhost 8080
 ```
 
 ## Inspirations
