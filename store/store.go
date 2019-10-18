@@ -14,7 +14,6 @@ import (
 
 // Store is a simple key-value store, where all changes are made via Raft consensus.
 type Store struct {
-	RaftDir  string
 	RaftAddr string
 	RaftID   string
 
@@ -33,10 +32,9 @@ type command struct {
 }
 
 // InitStore returns an initialized KV store
-func InitStore(dir, addr, join, id string) *Store {
+func InitStore(addr, join, id string) *Store {
 	var store Store
 
-	store.RaftDir = dir
 	store.RaftAddr = addr
 	store.RaftID = id
 	store.m = make(map[string]string)
@@ -62,23 +60,18 @@ func (s *Store) Open(join string) error {
 		return err
 	}
 
-	transport, err := raft.NewTCPTransport(s.RaftAddr, addr, 3, 10*time.Second, os.Stderr)
+	trans, err := raft.NewTCPTransport(s.RaftAddr, addr, 3, 10*time.Second, os.Stderr)
 	if err != nil {
 		return err
 	}
 
-	// Create the snapshot store
-	ss, err := raft.NewFileSnapshotStore(s.RaftDir, 2, os.Stderr)
-	if err != nil {
-		return err
-	}
-
-	// Create the log store and stable store
-	logStore := raft.NewInmemStore()
-	stableStore := raft.NewInmemStore()
+	// Create the snapshot store, log store and stable store in memory
+	snap := raft.NewInmemSnapshotStore()
+	log := raft.NewInmemStore()
+	stable := raft.NewInmemStore()
 
 	// Instantiate the Raft systems
-	r, err := raft.NewRaft(config, (*fsm)(s), logStore, stableStore, ss, transport)
+	r, err := raft.NewRaft(config, (*fsm)(s), log, stable, snap, trans)
 	if err != nil {
 		return err
 	}
@@ -89,7 +82,7 @@ func (s *Store) Open(join string) error {
 			Servers: []raft.Server{
 				{
 					ID:      config.LocalID,
-					Address: transport.LocalAddr(),
+					Address: trans.LocalAddr(),
 				},
 			},
 		}

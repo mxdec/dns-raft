@@ -19,7 +19,6 @@ $ bin/dns-raft -id id1 \
                -tcp.addr ":5370" \
                -dns.addr ":5450" \
                -raft.addr ":15370" \
-               -raft.dir "./raft/id1" \
                -zone.file "./zones/zone.txt"
 ```
 
@@ -29,7 +28,6 @@ $ bin/dns-raft -id id2 \
                -tcp.addr ":5371" \
                -dns.addr ":5451" \
                -raft.addr ":15371" \
-               -raft.dir "./raft/id2" \
                -raft.join "127.0.0.1:5370"
 ```
 
@@ -39,7 +37,6 @@ $ bin/dns-raft -id id3 \
                -tcp.addr ":5372" \
                -dns.addr ":5452" \
                -raft.addr ":15372" \
-               -raft.dir ./raft/id3 \
                -raft.join "127.0.0.1:5370"
 ```
 

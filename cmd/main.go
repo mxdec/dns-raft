@@ -15,8 +15,7 @@ var (
 	dnsaddr  string
 	raftaddr string
 	raftjoin string
-	raftdir  string
-	nodeID   string
+	raftid   string
 	zonefile string
 )
 
@@ -25,15 +24,14 @@ func init() {
 	flag.StringVar(&dnsaddr, "dns.addr", ":5354", "DNS listen address")
 	flag.StringVar(&raftaddr, "raft.addr", ":15370", "Raft bus transport bind address")
 	flag.StringVar(&raftjoin, "raft.join", "", "Join to already exist cluster")
-	flag.StringVar(&raftdir, "raft.dir", "./raft", "Raft data directory")
-	flag.StringVar(&nodeID, "id", "", "node id")
+	flag.StringVar(&raftid, "id", "", "node id")
 	flag.StringVar(&zonefile, "zone.file", "", "Zone file containing resource records")
 }
 
 func main() {
 	flag.Parse()
 
-	kvs := store.InitStore(raftdir, raftaddr, raftjoin, nodeID)
+	kvs := store.InitStore(raftaddr, raftjoin, raftid)
 	server.InitTCP(kvs, tcpaddr)
 	server.InitDNS(kvs, dnsaddr, zonefile)
 
