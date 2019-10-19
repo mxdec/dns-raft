@@ -100,6 +100,11 @@ func (s *Store) Leader() raft.ServerAddress {
 	return s.raft.Leader()
 }
 
+// IsLeader is used to return the current leader of the cluster
+func (s *Store) IsLeader() bool {
+	return s.raft.State() == raft.Leader
+}
+
 // LeaderCh https://github.com/hashicorp/raft/blob/master/api.go#L945
 func (s *Store) LeaderCh() <-chan bool {
 	return s.raft.LeaderCh()

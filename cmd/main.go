@@ -6,8 +6,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/maxdcr/dns-raft/server"
+	"github.com/maxdcr/dns-raft/dns"
 	"github.com/maxdcr/dns-raft/store"
+	"github.com/maxdcr/dns-raft/tcp"
 )
 
 var (
@@ -31,12 +32,33 @@ func init() {
 func main() {
 	flag.Parse()
 
+	quitCh := make(chan int)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+
 	kvs := store.InitStore(raftaddr, raftjoin, raftid)
-	server.InitTCP(kvs, tcpaddr)
-	server.InitDNS(kvs, dnsaddr, zonefile)
+	tcp := tcp.NewTCP(kvs, tcpaddr)
+	tcp.Start()
+	dns := dns.NewDNS(kvs, dnsaddr)
+	dns.Start()
+	dns.InitZone(zonefile)
+	go handleSignals(dns, sigCh, quitCh)
+	code := <-quitCh
+	os.Exit(code)
+}
 
-	quitCh := make(chan os.Signal, 1)
-	signal.Notify(quitCh, os.Kill, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	<-quitCh
+func handleSignals(dns *dns.DNS, sigCh chan os.Signal, quitCh chan int) {
+	for {
+		s := <-sigCh
+		switch s {
+		case syscall.SIGHUP:
+			dns.LoadZone(zonefile)
+		default:
+			quitCh <- 0
+		}
+	}
 }

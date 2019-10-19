@@ -59,6 +59,11 @@ Resolve address from third node:
 $ dig @127.0.0.1 -p 5352 example.com
 ```
 
+Reload zone file:
+```
+$ pkill -SIGHUP dns-raft
+```
+
 ## Play with KV Store
 
 Ping the first node:

@@ -1,4 +1,4 @@
-package server
+package tcp
 
 import (
 	"bufio"
@@ -10,8 +10,8 @@ import (
 	"github.com/maxdcr/dns-raft/store"
 )
 
-// TCPConn contains incoming connexion and command with args
-type TCPConn struct {
+// Req contains incoming connexion and command with args
+type Req struct {
 	conn   net.Conn
 	store  *store.Store
 	logger *log.Logger
@@ -19,9 +19,9 @@ type TCPConn struct {
 	args   []string
 }
 
-// TCPHandler triggers handler in a go-routine
-func TCPHandler(conn net.Conn, store *store.Store) {
-	c := &TCPConn{
+// Handler triggers handler in a go-routine
+func Handler(conn net.Conn, store *store.Store) {
+	c := &Req{
 		conn:   conn,
 		store:  store,
 		logger: log.New(os.Stderr, "", log.LstdFlags),
@@ -30,7 +30,7 @@ func TCPHandler(conn net.Conn, store *store.Store) {
 }
 
 // Handles incoming requests.
-func (c *TCPConn) handleRequest() {
+func (c *Req) handleRequest() {
 	input, err := bufio.NewReader(c.conn).ReadString('\n')
 	if err != nil {
 		c.logger.Println("error reading:", err.Error())
@@ -50,7 +50,7 @@ func (c *TCPConn) handleRequest() {
 }
 
 // Select the handler.
-func (c *TCPConn) handleCmd(cmd []string) string {
+func (c *Req) handleCmd(cmd []string) string {
 	if len(cmd) == 0 {
 		return "ERROR"
 	}
@@ -76,7 +76,7 @@ func (c *TCPConn) handleCmd(cmd []string) string {
 	}
 }
 
-func (c *TCPConn) handleJoin() string {
+func (c *Req) handleJoin() string {
 	if len(c.args) != 2 {
 		return "ERROR"
 	}
@@ -89,7 +89,7 @@ func (c *TCPConn) handleJoin() string {
 	return "SUCCESS"
 }
 
-func (c *TCPConn) handleLeave() string {
+func (c *Req) handleLeave() string {
 	if len(c.args) != 1 {
 		return "ERROR"
 	}
@@ -101,7 +101,7 @@ func (c *TCPConn) handleLeave() string {
 	return "SUCCESS"
 }
 
-func (c *TCPConn) handleGet() string {
+func (c *Req) handleGet() string {
 	if len(c.args) != 1 {
 		return "ERROR"
 	}
@@ -114,7 +114,7 @@ func (c *TCPConn) handleGet() string {
 	return v
 }
 
-func (c *TCPConn) handleSet() string {
+func (c *Req) handleSet() string {
 	if len(c.args) != 2 {
 		return "ERROR"
 	}
@@ -127,7 +127,7 @@ func (c *TCPConn) handleSet() string {
 	return "SUCCESS"
 }
 
-func (c *TCPConn) handleDel() string {
+func (c *Req) handleDel() string {
 	if len(c.args) != 1 {
 		return "ERROR"
 	}
