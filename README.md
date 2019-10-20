@@ -4,6 +4,22 @@ DNS cluster using Raft protocol for resource records replication.
 
 The purpose of this case study is to implement the [Raft](https://raft.github.io/) library from [Hashicorp](https://github.com/hashicorp/raft) in order to maintain consistent DNS records across multiple machines.
 
+```
+                             ┌────────┐
+                             │zone.txt│
+                             └────▲───┘
+                                  │
+                             read │
+                                  │
+   ┌──────────┐             ┌─────┴────┐             ┌──────────┐
+   │node 02   │             │node 01   │             │node 03   │
+   │          │             │          │             │          │
+   │follower  ◀─────────────┤leader    ├─────────────▶follower  │
+   │          │ replication │          │ replication │          │
+   │          │             │          │             │          │
+   └──────────┘             └──────────┘             └──────────┘
+```
+
 ## Build
 
 Compile source code:
