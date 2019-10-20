@@ -5,7 +5,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/maxdcr/dns-raft/store"
+	"github.com/maxdrc/dns-raft/store"
 )
 
 // TCP wrapper

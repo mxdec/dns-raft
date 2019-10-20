@@ -6,9 +6,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/maxdcr/dns-raft/dns"
-	"github.com/maxdcr/dns-raft/store"
-	"github.com/maxdcr/dns-raft/tcp"
+	"github.com/maxdrc/dns-raft/dns"
+	"github.com/maxdrc/dns-raft/store"
+	"github.com/maxdrc/dns-raft/tcp"
 )
 
 var (

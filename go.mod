@@ -1,4 +1,4 @@
-module github.com/maxdcr/dns-raft
+module github.com/maxdrc/dns-raft
 
 go 1.12
 

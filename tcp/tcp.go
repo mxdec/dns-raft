@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/maxdcr/dns-raft/store"
+	"github.com/maxdrc/dns-raft/store"
 )
 
 // Req contains incoming connexion and command with args

@@ -59,9 +59,19 @@ Resolve address from third node:
 $ dig @127.0.0.1 -p 5352 example.com
 ```
 
-Reload zone file:
+Add a DNS record:
+```
+echo 'database                 60 A     1.2.3.7' >> zones/zone.txt
+```
+
+Reload zone file by sending SIGHUP to leader node:
 ```
 $ pkill -SIGHUP dns-raft
+```
+
+Resolve new address from follower node:
+```
+$ dig @127.0.0.1 -p 5352 database.example.com
 ```
 
 ## Play with KV Store
