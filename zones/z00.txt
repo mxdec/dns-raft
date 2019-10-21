@@ -1,17 +1,18 @@
 $TTL	86400
-$ORIGIN example.com.
-@                      3600 SOA   dns.example.com. (
-                                admin.example.com.         ; address of responsible party
-                                1234567890                 ; serial number
-                                3600                       ; refresh period
-                                600                        ; retry period
-                                604800                     ; expire time
-                                1800                     ) ; minimum ttl
-                      86400 NS    dns.example.com.
-                       3600 MX    10 mail.example.com.
+$ORIGIN foo.com.
+@                      3600 SOA   dns.foo.com. (
+                                admin.foo.com.            ; address of responsible party
+                                1234567890                ; serial number
+                                3600                      ; refresh period
+                                600                       ; retry period
+                                604800                    ; expire time
+                                1800                    ) ; minimum ttl
+                      86400 NS    dns.foo.com.
+                       3600 MX    10 mail.foo.com.
                          60 A     1.2.3.4
                        3600 TXT   "example of zone file for our study case"
 mail                  14400 A     1.2.3.4
 vpn                      60 A     1.2.3.5
 webapp                   60 A     1.2.3.6
-www                   43200 CNAME example.com.
+www                   43200 CNAME foo.com.
+database                 60 A     1.2.3.7

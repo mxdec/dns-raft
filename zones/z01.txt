@@ -1,17 +1,17 @@
 $TTL	86400
-$ORIGIN toto.com.
-@                      3600 SOA   dns.toto.com. (
-                                admin.toto.com.            ; address of responsible party
-                                1234567890                 ; serial number
-                                3600                       ; refresh period
-                                600                        ; retry period
-                                604800                     ; expire time
-                                1800                     ) ; minimum ttl
-                      86400 NS    dns.toto.com.
-                       3600 MX    10 mail.toto.com.
+$ORIGIN bar.com.
+@                      3600 SOA   dns.bar.com. (
+                                admin.bar.com.            ; address of responsible party
+                                1234567890                ; serial number
+                                3600                      ; refresh period
+                                600                       ; retry period
+                                604800                    ; expire time
+                                1800                    ) ; minimum ttl
+                      86400 NS    dns.bar.com.
+                       3600 MX    10 mail.bar.com.
                          60 A     1.2.3.10
                        3600 TXT   "example of zone file for our study case"
 mail                  14400 A     1.2.3.11
 vpn                      60 A     1.2.3.12
 webapp                   60 A     1.2.3.13
-www                   43200 CNAME toto.com.
+www                   43200 CNAME bar.com.

@@ -6,20 +6,26 @@ The purpose of this case study is to implement the [Raft](https://raft.github.io
 
 Any write attempt to KV Store is forwarded to the leader.
 
+## Design
+
 ```
-                             ┌────────┐
-                             │zone.txt│
-                             └────▲───┘
-                                  │
-                             read │
-                                  │
-   ┌──────────┐             ┌─────┴────┐             ┌──────────┐
-   │node 02   │             │node 01   │             │node 03   │
-   │          │             │          │             │          │
-   │follower  ◀─────────────┤leader    ├─────────────▶follower  │
-   │          │ replication │          │ replication │          │
-   │          │             │          │             │          │
-   └──────────┘             └──────────┘             └──────────┘
+  ┌───────────┐             ┌───────────┐             ┌───────────┐
+  │z01.txt    │             │z00.txt    │             │z02.txt    │
+  │           │             │           │             │           │
+  │bar.com    │             │foo.com    │             │baz.com    │
+  └─────▲─────┘             └─────▲─────┘             └─────▲─────┘
+        │                         │                         │      
+    read│                     read│                     read│      
+        │                         │                         │      
+  ┌─────┴─────┐             ┌─────┴─────┐             ┌─────┴─────┐
+  │           │  leader     │           │     leader  │           │
+  │           │forwarding   │           │   forwarding│           │
+  │ node 01   ├─────────────▶ node 00   ◀─────────────┤ node 02   │
+  │           │             │           │             │           │
+  │ follower  │             │ leader    │             │ follower  │
+  │           │  replication│           │replication  │           │
+  │           ◀─────────────┤           ├─────────────▶           │
+  └───────────┘             └───────────┘             └───────────┘
 ```
 
 ## Build
@@ -40,27 +46,27 @@ $ bin/dns-raft -id id2 -raft.addr ":8302" -dns.addr ":8602" -zone.file "./zones/
 
 ## DNS
 
-Each node reads its own [zone file](zones/) at execution, and replicates its records to each other.
+Each node reads a [zone file](zones/) at execution, and replicates its records to other nodes.
 
 Resolve addresses from first node:
 ```
-$ dig @127.0.0.1 -p 8600 example.com
-$ dig @127.0.0.1 -p 8600 toto.com
-$ dig @127.0.0.1 -p 8600 tutu.com
+$ dig @127.0.0.1 -p 8600 foo.com
+$ dig @127.0.0.1 -p 8600 bar.com
+$ dig @127.0.0.1 -p 8600 baz.com
 ```
 
 Resolve addresses from second node:
 ```
-$ dig @127.0.0.1 -p 8601 example.com
-$ dig @127.0.0.1 -p 8601 toto.com
-$ dig @127.0.0.1 -p 8601 tutu.com
+$ dig @127.0.0.1 -p 8601 foo.com
+$ dig @127.0.0.1 -p 8601 bar.com
+$ dig @127.0.0.1 -p 8601 baz.com
 ```
 
 Resolve addresses from third node:
 ```
-$ dig @127.0.0.1 -p 8602 example.com
-$ dig @127.0.0.1 -p 8602 toto.com
-$ dig @127.0.0.1 -p 8602 tutu.com
+$ dig @127.0.0.1 -p 8602 foo.com
+$ dig @127.0.0.1 -p 8602 bar.com
+$ dig @127.0.0.1 -p 8602 baz.com
 ```
 
 Add a DNS record to a zone file:
@@ -73,9 +79,9 @@ Reload zone file by sending SIGHUP to node:
 $ pkill -SIGHUP dns-raft
 ```
 
-Resolve new address from follower node:
+Resolve new address from any node:
 ```
-$ dig @127.0.0.1 -p 8602 database.example.com
+$ dig @127.0.0.1 -p 8602 database.foo.com
 ```
 
 ## Play with KV Store
@@ -88,36 +94,26 @@ PONG
 
 Add a key to one of the nodes:
 ```
-$ echo "kv set toto titi" | nc localhost 8300
-SUCCESS
-$ echo "kv set tata tutu" | nc localhost 8302
+$ echo "kv set foo bar" | nc localhost 8301
 SUCCESS
 ```
 
 Get the value from any node:
 ```
-# first node
-$ echo "kv get toto" | nc localhost 8300
-titi
-$ echo "kv get tata" | nc localhost 8300
-tutu
-
-# second node
-$ echo "kv get toto" | nc localhost 8301
-titi
-$ echo "kv get tata" | nc localhost 8301
-titi
-
-# third node
-$ echo "kv get toto" | nc localhost 8302
-titi
-$ echo "kv get tata" | nc localhost 8302
-titi
+$ echo "kv get foo" | nc localhost 8300
+bar
+$ echo "kv get foo" | nc localhost 8301
+bar
+$ echo "kv get foo" | nc localhost 8302
+bar
 ```
 
 Remove the key:
 ```
-$ echo "kv del toto" | nc localhost 8300
+$ echo "kv del foo" | nc localhost 8302
+SUCCESS
+$ echo "kv get foo" | nc localhost 8301
+ERROR
 ```
 
 ## Inspirations

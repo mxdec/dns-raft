@@ -1,17 +1,17 @@
 $TTL	86400
-$ORIGIN tutu.com.
-@                      3600 SOA   dns.tutu.com. (
-                                admin.tutu.com.            ; address of responsible party
-                                1234567890                 ; serial number
-                                3600                       ; refresh period
-                                600                        ; retry period
-                                604800                     ; expire time
-                                1800                     ) ; minimum ttl
-                      86400 NS    dns.tutu.com.
-                       3600 MX    10 mail.tutu.com.
+$ORIGIN baz.com.
+@                      3600 SOA   dns.baz.com. (
+                                admin.baz.com.            ; address of responsible party
+                                1234567890                ; serial number
+                                3600                      ; refresh period
+                                600                       ; retry period
+                                604800                    ; expire time
+                                1800                    ) ; minimum ttl
+                      86400 NS    dns.baz.com.
+                       3600 MX    10 mail.baz.com.
                          60 A     1.2.3.20
                        3600 TXT   "example of zone file for our study case"
 mail                  14400 A     1.2.3.21
 vpn                      60 A     1.2.3.22
 webapp                   60 A     1.2.3.23
-www                   43200 CNAME tutu.com.
+www                   43200 CNAME baz.com.
