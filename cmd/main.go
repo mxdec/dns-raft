@@ -8,11 +8,9 @@ import (
 
 	"github.com/maxdrc/dns-raft/dns"
 	"github.com/maxdrc/dns-raft/store"
-	"github.com/maxdrc/dns-raft/tcp"
 )
 
 var (
-	tcpaddr  string
 	dnsaddr  string
 	raftaddr string
 	raftjoin string
@@ -21,7 +19,6 @@ var (
 )
 
 func init() {
-	flag.StringVar(&tcpaddr, "tcp.addr", ":8080", "TCP listen address")
 	flag.StringVar(&dnsaddr, "dns.addr", ":5350", "DNS listen address")
 	flag.StringVar(&raftaddr, "raft.addr", ":15370", "Raft bus transport bind address")
 	flag.StringVar(&raftjoin, "raft.join", "", "Join to already exist cluster")
@@ -41,11 +38,9 @@ func main() {
 		syscall.SIGQUIT)
 
 	kvs := store.InitStore(raftaddr, raftjoin, raftid)
-	tcp := tcp.NewTCP(kvs, tcpaddr)
-	tcp.Start()
 	dns := dns.NewDNS(kvs, dnsaddr)
 	dns.Start()
-	dns.InitZone(zonefile)
+	dns.LoadZone(zonefile)
 	go handleSignals(dns, sigCh, quitCh)
 	code := <-quitCh
 	os.Exit(code)

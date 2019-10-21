@@ -10,6 +10,28 @@ import (
 	"github.com/miekg/dns"
 )
 
+type dnsHandler struct {
+	kvs    *store.Store
+	logger *log.Logger
+}
+
+// ServeDNS finds record in the KV Store
+func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+	var msg dns.Msg
+
+	msg.SetReply(r)
+	d.logger.Printf("incoming DNS request from %s", w.RemoteAddr().String())
+	key := fmt.Sprintf("%s_%d", r.Question[0].Name, r.Question[0].Qtype)
+	msg.Authoritative = true
+	v, ok := d.kvs.Get(key)
+	if ok {
+		if rr, err := dns.NewRR(v); err == nil {
+			msg.Answer = append(msg.Answer, rr)
+		}
+	}
+	w.WriteMsg(&msg)
+}
+
 // DNS wrapper
 type DNS struct {
 	srv    dns.Server
@@ -41,22 +63,26 @@ func (d *DNS) Start() {
 	}()
 }
 
-// InitZone load zone file into KV Store when node is elected Leader
-func (d *DNS) InitZone(zoneFile string) {
-	if len(zoneFile) > 0 {
-		select {
-		case <-d.kvs.LeaderCh():
-			d.parseZone(zoneFile)
-		case <-time.After(5 * time.Second):
-			d.logger.Println("zonefile: error, not leader")
-		}
-	}
-}
-
-// LoadZone reload zone file into KV Store if node is Raft Leader
+// LoadZone load zone file into KV Store when node is elected Leader
 func (d *DNS) LoadZone(zoneFile string) {
-	if len(zoneFile) > 0 && d.kvs.IsLeader() {
-		d.parseZone(zoneFile)
+	if len(zoneFile) > 0 {
+		timeout := time.After(10 * time.Second)
+		for {
+			if len(d.kvs.Leader()) > 0 {
+				d.parseZone(zoneFile)
+				return
+			}
+
+			// poll until leader is known
+			select {
+			case <-d.kvs.LeaderCh():
+				d.parseZone(zoneFile)
+				return
+			case <-time.After(1 * time.Second):
+			case <-timeout:
+				d.logger.Println("zonefile: error, not leader")
+			}
+		}
 	}
 }
 
@@ -84,26 +110,4 @@ func (d *DNS) parseZone(zoneFile string) {
 		d.logger.Printf("error reading zone file: %v", err)
 	}
 	d.logger.Println("records loaded into KV Store")
-}
-
-type dnsHandler struct {
-	kvs    *store.Store
-	logger *log.Logger
-}
-
-// ServeDNS finds record in the KV Store
-func (d *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
-	var msg dns.Msg
-
-	msg.SetReply(r)
-	d.logger.Printf("incoming DNS request from %s", w.RemoteAddr().String())
-	key := fmt.Sprintf("%s_%d", r.Question[0].Name, r.Question[0].Qtype)
-	msg.Authoritative = true
-	v, ok := d.kvs.Get(key)
-	if ok {
-		if rr, err := dns.NewRR(v); err == nil {
-			msg.Answer = append(msg.Answer, rr)
-		}
-	}
-	w.WriteMsg(&msg)
 }

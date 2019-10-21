@@ -1,15 +1,23 @@
 package store
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
-	"sync"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/raft"
+)
+
+const (
+	successMsg  = "SUCCESS"
+	errorMsg    = "ERROR"
+	rspBuffSize = 1024
 )
 
 // Store is a simple key-value store, where all changes are made via Raft consensus.
@@ -17,53 +25,61 @@ type Store struct {
 	RaftAddr string
 	RaftID   string
 
-	mu sync.Mutex
-	m  map[string]string // The key-value store for the system.
+	// TCP listener
+	ln net.Listener
 
-	raft *raft.Raft // The consensus mechanism
+	// raft
+	fsm       *fsm       // The finite-state machine
+	raft      *raft.Raft // The consensus mechanism
+	raftLayer *raftLayer // The TCP wrapper for Raft
 
+	// logger
 	logger *log.Logger
-}
-
-type command struct {
-	Op    string `json:"op,omitempty"`
-	Key   string `json:"key,omitempty"`
-	Value string `json:"value,omitempty"`
 }
 
 // InitStore returns an initialized KV store
 func InitStore(addr, join, id string) *Store {
 	var store Store
+	var err error
 
 	store.RaftAddr = addr
 	store.RaftID = id
-	store.m = make(map[string]string)
 	store.logger = log.New(os.Stderr, "", log.LstdFlags)
 
-	// start Raft Listener
-	if err := store.Open(join); err != nil {
+	// Create the FSM.
+	store.fsm = newFSM()
+
+	// Initialize TCP
+	store.ln, err = net.Listen("tcp", store.RaftAddr)
+	if err != nil {
 		store.logger.Println(err.Error())
 		panic(err.Error())
 	}
+
+	// start Raft
+	if err := store.initRaft(join); err != nil {
+		store.logger.Println(err.Error())
+		panic(err.Error())
+	}
+
+	// Start listening for requests.
+	go store.start(store.ln)
+
 	return &store
 }
 
 // Open initializes the store
-func (s *Store) Open(join string) error {
+func (s *Store) initRaft(join string) error {
 	// Setup Raft configuration.
 	config := raft.DefaultConfig()
 	config.LocalID = raft.ServerID(s.RaftID)
 
-	// Setup Raft communication
-	addr, err := net.ResolveTCPAddr("tcp", s.RaftAddr)
-	if err != nil {
-		return err
+	// set Raft and KV connections on same TCP port
+	s.raftLayer = &raftLayer{
+		addr:   s.ln.Addr().(*net.TCPAddr),
+		connCh: make(chan net.Conn),
 	}
-
-	trans, err := raft.NewTCPTransport(s.RaftAddr, addr, 3, 10*time.Second, os.Stderr)
-	if err != nil {
-		return err
-	}
+	trans := raft.NewNetworkTransport(s.raftLayer, 3, 10*time.Second, os.Stderr)
 
 	// Create the snapshot store, log store and stable store in memory
 	snap := raft.NewInmemSnapshotStore()
@@ -71,7 +87,7 @@ func (s *Store) Open(join string) error {
 	stable := raft.NewInmemStore()
 
 	// Instantiate the Raft systems
-	r, err := raft.NewRaft(config, (*fsm)(s), log, stable, snap, trans)
+	r, err := raft.NewRaft(config, s.fsm, log, stable, snap, trans)
 	if err != nil {
 		return err
 	}
@@ -88,11 +104,51 @@ func (s *Store) Open(join string) error {
 		}
 		s.raft.BootstrapCluster(configuration)
 	} else {
+		// format join command with header message "kv "
+		msg := []byte(fmt.Sprintf("kv join %s %s\n", s.RaftAddr, s.RaftID))
 		// send join request to existing node
-		rsp := tcpRequest(join, fmt.Sprintf("join %s %s\n", s.RaftAddr, s.RaftID))
+		rsp := tcpRequest(join, msg)
 		s.logger.Printf("joining node at %s: %s", join, rsp)
 	}
 	return nil
+}
+
+// start listens for incoming TCP connections
+func (s *Store) start(ln net.Listener) {
+	for {
+		// Accept a connection
+		conn, err := ln.Accept()
+		if err != nil {
+			s.logger.Printf("failed to accept RPC conn: %v", err)
+			continue
+		}
+		go s.handleConn(conn)
+	}
+}
+
+// handleConn selects correct handler for Raft or KV message
+func (s *Store) handleConn(conn net.Conn) {
+	// Read the header messaqge
+	hdr := make([]byte, 3)
+	if _, err := conn.Read(hdr); err != nil {
+		if err != io.EOF {
+			s.logger.Printf("failed to read byte: %v", err)
+		}
+		conn.Close()
+		return
+	}
+
+	// Switch on the header message
+	switch {
+	case bytes.Equal(hdr, []byte("kv ")):
+		s.handleTCP(conn)
+	case bytes.Equal(hdr, []byte("rft")):
+		s.raftLayer.Handoff(conn)
+	default:
+		s.logger.Printf("unknown command prefix: %s", string(hdr))
+		conn.Write([]byte("ERROR"))
+		conn.Close()
+	}
 }
 
 // Leader is used to return the current leader of the cluster
@@ -112,16 +168,13 @@ func (s *Store) LeaderCh() <-chan bool {
 
 // Get key from KV Store
 func (s *Store) Get(key string) (string, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	v, ok := s.m[key]
-	return v, ok
+	return s.fsm.get(key)
 }
 
 // Set adds key to KV Store
 func (s *Store) Set(key, value string) error {
 	if s.raft.State() != raft.Leader {
-		return fmt.Errorf("not leader")
+		return s.forwardSet(key, value)
 	}
 
 	c := &command{
@@ -141,7 +194,7 @@ func (s *Store) Set(key, value string) error {
 // Delete removes key from KV Store
 func (s *Store) Delete(key string) error {
 	if s.raft.State() != raft.Leader {
-		return fmt.Errorf("not leader")
+		return s.forwardDel(key)
 	}
 
 	c := &command{
@@ -221,20 +274,20 @@ func (s *Store) Leave(nodeID string) error {
 	return nil
 }
 
-func tcpRequest(srvAddr, message string) string {
+func tcpRequest(srvAddr string, message []byte) string {
 	conn, err := net.Dial("tcp", srvAddr)
 	if err != nil {
 		return "could not connect to TCP server: " + err.Error()
 	}
 	defer conn.Close()
 
-	if _, err := conn.Write([]byte(message)); err != nil {
+	if _, err := conn.Write(message); err != nil {
 		return "could not write message to TCP server: " + err.Error()
 	}
 
-	out := make([]byte, 1024)
-	if _, err := conn.Read(out); err != nil {
+	buf := make([]byte, rspBuffSize)
+	if _, err := conn.Read(buf); err != nil {
 		return "could not read response from TCP server: " + err.Error()
 	}
-	return string(out)
+	return strings.TrimRight(string(buf), "\x00")
 }

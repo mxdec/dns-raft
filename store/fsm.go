@@ -4,11 +4,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
+	"os"
+	"sync"
 
 	"github.com/hashicorp/raft"
 )
 
-type fsm Store
+type fsm struct {
+	mu sync.Mutex
+	m  map[string]string // The key-value store
+
+	logger *log.Logger
+}
+
+type command struct {
+	Op    string `json:"op,omitempty"`
+	Key   string `json:"key,omitempty"`
+	Value string `json:"value,omitempty"`
+}
+
+func newFSM() *fsm {
+	return &fsm{
+		m:      make(map[string]string),
+		logger: log.New(os.Stderr, "", log.LstdFlags),
+	}
+}
 
 // Apply applies a Raft log entry to the key-value store.
 func (f *fsm) Apply(l *raft.Log) interface{} {
@@ -52,6 +73,13 @@ func (f *fsm) Restore(rc io.ReadCloser) error {
 	// Hashicorp docs.
 	f.m = ss
 	return nil
+}
+
+func (f *fsm) get(key string) (string, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	v, ok := f.m[key]
+	return v, ok
 }
 
 func (f *fsm) applySet(key, value string) interface{} {
