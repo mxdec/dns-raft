@@ -15,8 +15,13 @@ import (
 )
 
 const (
-	successMsg  = "SUCCESS"
-	errorMsg    = "ERROR"
+	// tcp messages
+	joinMsg  = "kv join %s %s\n"
+	leaveMsg = "kv leave %s\n"
+	setMsg   = "kv set %s %s\n"
+	delMsg   = "kv del %s\n"
+
+	// tcp response buffer size
 	rspBuffSize = 1024
 )
 
@@ -104,9 +109,8 @@ func (s *Store) initRaft(join string) error {
 		}
 		s.raft.BootstrapCluster(configuration)
 	} else {
-		// format join command with header message "kv "
-		msg := []byte(fmt.Sprintf("kv join %s %s\n", s.RaftAddr, s.RaftID))
 		// send join request to existing node
+		msg := []byte(fmt.Sprintf(joinMsg, s.RaftAddr, s.RaftID))
 		rsp := tcpRequest(join, msg)
 		s.logger.Printf("joining node at %s: %s", join, rsp)
 	}
@@ -177,7 +181,7 @@ func (s *Store) Get(key string) (string, bool) {
 // Set adds key to KV Store
 func (s *Store) Set(key, value string) error {
 	if s.raft.State() != raft.Leader {
-		return s.forwardSet(key, value)
+		return s.forward(fmt.Sprintf(setMsg, key, value))
 	}
 
 	c := &command{
@@ -197,7 +201,7 @@ func (s *Store) Set(key, value string) error {
 // Delete removes key from KV Store
 func (s *Store) Delete(key string) error {
 	if s.raft.State() != raft.Leader {
-		return s.forwardDel(key)
+		return s.forward(fmt.Sprintf(delMsg, key))
 	}
 
 	c := &command{
@@ -216,6 +220,10 @@ func (s *Store) Delete(key string) error {
 // Join joins a node, identified by nodeID and located at addr, to this store.
 // The node must be ready to respond to Raft communications at that address.
 func (s *Store) Join(nodeID, addr string) error {
+	if s.raft.State() != raft.Leader {
+		return s.forward(fmt.Sprintf(joinMsg, addr, nodeID))
+	}
+
 	s.logger.Printf("received join request for remote node %s at %s", nodeID, addr)
 
 	cf := s.raft.GetConfiguration()
@@ -252,6 +260,10 @@ func (s *Store) Join(nodeID, addr string) error {
 
 // Leave removes the node from the cluster
 func (s *Store) Leave(nodeID string) error {
+	if s.raft.State() != raft.Leader {
+		return s.forward(fmt.Sprintf(leaveMsg, s.RaftID))
+	}
+
 	s.logger.Printf("received leave request for remote node %s", nodeID)
 
 	cf := s.raft.GetConfiguration()
@@ -268,7 +280,7 @@ func (s *Store) Leave(nodeID string) error {
 				return err
 			}
 
-			s.logger.Printf("node %s leaved successfully", nodeID)
+			s.logger.Printf("node %s left successfully", nodeID)
 			return nil
 		}
 	}

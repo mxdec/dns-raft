@@ -32,6 +32,7 @@ func main() {
 	quitCh := make(chan int)
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh,
+		os.Interrupt,
 		syscall.SIGHUP,
 		syscall.SIGINT,
 		syscall.SIGTERM,
@@ -41,19 +42,21 @@ func main() {
 	dns := dns.NewDNS(kvs, dnsaddr)
 	dns.Start()
 	dns.LoadZone(zonefile)
-	go handleSignals(dns, sigCh, quitCh)
+
+	go func() {
+		for {
+			s := <-sigCh
+			switch s {
+			case syscall.SIGHUP:
+				dns.LoadZone(zonefile)
+			case syscall.SIGINT:
+				kvs.Leave(kvs.RaftID)
+				quitCh <- 0
+			default:
+				quitCh <- 0
+			}
+		}
+	}()
 	code := <-quitCh
 	os.Exit(code)
-}
-
-func handleSignals(dns *dns.DNS, sigCh chan os.Signal, quitCh chan int) {
-	for {
-		s := <-sigCh
-		switch s {
-		case syscall.SIGHUP:
-			dns.LoadZone(zonefile)
-		default:
-			quitCh <- 0
-		}
-	}
 }
