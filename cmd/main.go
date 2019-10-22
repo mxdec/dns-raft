@@ -29,34 +29,28 @@ func init() {
 func main() {
 	flag.Parse()
 
-	quitCh := make(chan int)
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh,
-		os.Interrupt,
-		syscall.SIGHUP,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT)
-
 	kvs := store.InitStore(raftaddr, raftjoin, raftid)
 	dns := dns.NewDNS(kvs, dnsaddr)
-	dns.Start()
+	go handleSignals(kvs, dns)
 	dns.LoadZone(zonefile)
+	dns.Start()
+}
 
-	go func() {
-		for {
-			s := <-sigCh
-			switch s {
-			case syscall.SIGHUP:
-				dns.LoadZone(zonefile)
-			case syscall.SIGINT:
-				kvs.Leave(kvs.RaftID)
-				quitCh <- 0
-			default:
-				quitCh <- 0
-			}
+func handleSignals(kvs *store.Store, dns *dns.DNS) {
+	signalChan := make(chan os.Signal, 1)
+	sighupChan := make(chan os.Signal, 1)
+
+	signal.Notify(sighupChan, syscall.SIGHUP)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
+
+	for {
+		select {
+		case <-sighupChan:
+			dns.LoadZone(zonefile)
+		case <-signalChan:
+			kvs.Leave(kvs.RaftID)
+			dns.Shutdown()
+			kvs.Shutdown()
 		}
-	}()
-	code := <-quitCh
-	os.Exit(code)
+	}
 }

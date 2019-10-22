@@ -57,9 +57,17 @@ func NewDNS(kvs *store.Store, dnsAddr string) *DNS {
 // Start initializes DNS server
 func (d *DNS) Start() {
 	d.logger.Printf("setting UDP listener to %s", d.srv.Addr)
-	go func() {
-		d.logger.Fatal(d.srv.ListenAndServe())
-	}()
+	if err := d.srv.ListenAndServe(); err != nil {
+		d.logger.Println(err.Error())
+	}
+}
+
+// Shutdown closes DNS server
+func (d *DNS) Shutdown() {
+	d.logger.Println("closing UDP listener")
+	if err := d.srv.Shutdown(); err != nil {
+		d.logger.Println(err.Error())
+	}
 }
 
 // LoadZone load zone file into KV Store when node is elected Leader

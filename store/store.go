@@ -34,9 +34,10 @@ type Store struct {
 	ln net.Listener
 
 	// raft
-	fsm       *fsm       // The finite-state machine
-	raft      *raft.Raft // The consensus mechanism
-	raftLayer *raftLayer // The TCP wrapper for Raft
+	fsm       *fsm                   // The finite-state machine
+	raft      *raft.Raft             // The consensus mechanism
+	raftLayer *raftLayer             // The TCP wrapper for Raft
+	raftTrans *raft.NetworkTransport // The consensus mechanism
 
 	// logger
 	logger *log.Logger
@@ -81,10 +82,11 @@ func (s *Store) initRaft(join string) error {
 
 	// set Raft and KV connections on same TCP port
 	s.raftLayer = &raftLayer{
-		addr:   s.ln.Addr().(*net.TCPAddr),
-		connCh: make(chan net.Conn),
+		addr:    s.ln.Addr().(*net.TCPAddr),
+		connCh:  make(chan net.Conn),
+		closeCh: make(chan struct{}),
 	}
-	trans := raft.NewNetworkTransport(s.raftLayer, 3, 10*time.Second, os.Stderr)
+	s.raftTrans = raft.NewNetworkTransport(s.raftLayer, 3, 10*time.Second, os.Stderr)
 
 	// Create the snapshot store, log store and stable store in memory
 	snap := raft.NewInmemSnapshotStore()
@@ -92,7 +94,7 @@ func (s *Store) initRaft(join string) error {
 	stable := raft.NewInmemStore()
 
 	// Instantiate the Raft systems
-	r, err := raft.NewRaft(config, s.fsm, log, stable, snap, trans)
+	r, err := raft.NewRaft(config, s.fsm, log, stable, snap, s.raftTrans)
 	if err != nil {
 		return err
 	}
@@ -103,7 +105,7 @@ func (s *Store) initRaft(join string) error {
 			Servers: []raft.Server{
 				{
 					ID:      config.LocalID,
-					Address: trans.LocalAddr(),
+					Address: s.raftTrans.LocalAddr(),
 				},
 			},
 		}
@@ -287,6 +289,21 @@ func (s *Store) Leave(nodeID string) error {
 
 	s.logger.Printf("node %s not exists in raft group", nodeID)
 	return nil
+}
+
+// Shutdown closes Raft connections gracefully
+func (s *Store) Shutdown() {
+	if s.raft != nil {
+		s.raftTrans.Close()
+		// s.raftLayer.Close()
+		future := s.raft.Shutdown()
+		if err := future.Error(); err != nil {
+			s.logger.Printf("[WARN] consul: error shutting down raft: %s", err)
+		}
+	}
+	if s.ln != nil {
+		s.ln.Close()
+	}
 }
 
 func tcpRequest(srvAddr string, message []byte) string {
