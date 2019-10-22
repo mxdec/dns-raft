@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"github.com/maxdrc/dns-raft/store"
 	"github.com/miekg/dns"
@@ -66,22 +65,10 @@ func (d *DNS) Start() {
 // LoadZone load zone file into KV Store when node is elected Leader
 func (d *DNS) LoadZone(zoneFile string) {
 	if len(zoneFile) > 0 {
-		timeout := time.After(10 * time.Second)
-		for {
-			if len(d.kvs.Leader()) > 0 {
-				d.parseZone(zoneFile)
-				return
-			}
-
-			// poll until leader is known
-			select {
-			case <-d.kvs.LeaderCh():
-				d.parseZone(zoneFile)
-				return
-			case <-time.After(1 * time.Second):
-			case <-timeout:
-				d.logger.Println("zonefile: error, not leader")
-			}
+		if len(d.kvs.WaitLeader()) > 0 {
+			d.parseZone(zoneFile)
+		} else {
+			d.logger.Println("zonefile: error, no leader")
 		}
 	}
 }

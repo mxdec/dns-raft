@@ -151,19 +151,22 @@ func (s *Store) handleConn(conn net.Conn) {
 	}
 }
 
-// Leader is used to return the current leader of the cluster
-func (s *Store) Leader() raft.ServerAddress {
-	return s.raft.Leader()
-}
+// WaitLeader polls until leader is known
+func (s *Store) WaitLeader() string {
+	timeout := time.After(10 * time.Second)
+	for {
+		if len(s.raft.Leader()) > 0 {
+			return string(s.raft.Leader())
+		}
 
-// IsLeader is used to return the current leader of the cluster
-func (s *Store) IsLeader() bool {
-	return s.raft.State() == raft.Leader
-}
-
-// LeaderCh https://github.com/hashicorp/raft/blob/master/api.go#L945
-func (s *Store) LeaderCh() <-chan bool {
-	return s.raft.LeaderCh()
+		select {
+		case <-s.raft.LeaderCh():
+			return string(s.raft.Leader())
+		case <-time.After(1 * time.Second):
+		case <-timeout:
+			return ""
+		}
+	}
 }
 
 // Get key from KV Store
