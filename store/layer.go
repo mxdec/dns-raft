@@ -25,6 +25,14 @@ type raftLayer struct {
 	closeLock sync.Mutex
 }
 
+func newRaftLayer(addr *net.TCPAddr) *raftLayer {
+	return &raftLayer{
+		addr:    addr,
+		connCh:  make(chan net.Conn),
+		closeCh: make(chan struct{}),
+	}
+}
+
 // Handoff is used to hand off a connection to the
 // raftLayer. This allows it to be Accept()'ed
 func (l *raftLayer) Handoff(c net.Conn) error {

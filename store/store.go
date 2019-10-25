@@ -58,14 +58,14 @@ func InitStore(addr, join, id string) *Store {
 	// Initialize TCP
 	store.ln, err = net.Listen("tcp", store.RaftAddr)
 	if err != nil {
-		store.logger.Println(err.Error())
-		panic(err.Error())
+		store.logger.Fatal(err)
+		return nil
 	}
 
 	// start Raft
 	if err := store.initRaft(join); err != nil {
-		store.logger.Println(err.Error())
-		panic(err.Error())
+		store.logger.Fatal(err)
+		return nil
 	}
 
 	// Start listening for requests.
@@ -81,11 +81,7 @@ func (s *Store) initRaft(join string) error {
 	config.LocalID = raft.ServerID(s.RaftID)
 
 	// set Raft and KV connections on same TCP port
-	s.raftLayer = &raftLayer{
-		addr:    s.ln.Addr().(*net.TCPAddr),
-		connCh:  make(chan net.Conn),
-		closeCh: make(chan struct{}),
-	}
+	s.raftLayer = newRaftLayer(s.ln.Addr().(*net.TCPAddr))
 	s.raftTrans = raft.NewNetworkTransport(s.raftLayer, 3, 10*time.Second, os.Stderr)
 
 	// Create the snapshot store, log store and stable store in memory

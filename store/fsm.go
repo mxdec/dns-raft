@@ -2,7 +2,6 @@ package store
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -36,7 +35,7 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 	var c command
 
 	if err := json.Unmarshal(l.Data, &c); err != nil {
-		panic(fmt.Sprintf("failed to unmarshal command: %s", err.Error()))
+		f.logger.Fatalf("failed to unmarshal command: %s", err.Error())
 	}
 
 	switch c.Op {
@@ -45,7 +44,7 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 	case "delete":
 		return f.applyDelete(c.Key)
 	default:
-		panic(fmt.Sprintf("unrecognized command op: %s", c.Op))
+		f.logger.Fatalf("unrecognized command op: %s", c.Op)
 	}
 }
 
