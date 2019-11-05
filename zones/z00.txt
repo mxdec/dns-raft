@@ -15,4 +15,3 @@ mail                  14400 A     1.2.3.4
 vpn                      60 A     1.2.3.5
 webapp                   60 A     1.2.3.6
 www                   43200 CNAME foo.com.
-database                 60 A     1.2.3.7

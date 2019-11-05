@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -44,7 +45,7 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 	case "delete":
 		return f.applyDelete(c.Key)
 	default:
-		f.logger.Fatalf("unrecognized command op: %s", c.Op)
+		panic(fmt.Sprintf("unrecognized command op: %s", c.Op))
 	}
 }
 
