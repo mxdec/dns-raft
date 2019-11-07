@@ -113,4 +113,4 @@ Idee de bonus pour ce projet:
 - DNS authoritative lookups: resoudre des noms de domaine public, pas uniquement les fichiers de zone.
 - Les mettre en cache pour reduire le temps de réponse.
 - Raft Leader forwarding: tous les noeuds follower forward les nouvelles données au leader.
-```
+
