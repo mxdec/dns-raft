@@ -50,7 +50,7 @@ $ bin/dns-raft -id id1 -raft.addr ":8301" -dns.addr ":8601" -zone.file "./zones/
 $ bin/dns-raft -id id2 -raft.addr ":8302" -dns.addr ":8602" -zone.file "./zones/z02.txt" -raft.join ":8300"
 ```
 
-## DNS
+## Partie obligatoire
 
 Chaque noeud lis un [fichier de zone](zones/) à l'execution, et réplique ses données aux autres noeuds.
 
@@ -95,7 +95,7 @@ Couper le 2ème noeud avec CTRL-C, puis ajouter une entrée sur "z00.txt"
 $ echo 'bonjour                  60 A     1.2.3.40' >> zones/z02.txt
 $ pkill -SIGHUP dns-raft
 ```
-
+- 
 Relancer le 2ème noeud:
 ```
 $ bin/dns-raft -id id1 -raft.addr ":8301" -dns.addr ":8601" -zone.file "./zones/z01.txt" -raft.join ":8300"
@@ -104,4 +104,13 @@ $ bin/dns-raft -id id1 -raft.addr ":8301" -dns.addr ":8601" -zone.file "./zones/
 Est-ce que ce noeud à bien reçu les nouvelles données ?
 ```
 $ dig @127.0.0.1 -p 8601 bonjour.baz.com
+```
+
+## Partie bonus
+
+Idee de bonus pour ce projet:
+- Une API pour recevoir des nouvelles entrées DNS autrement que par fichier.
+- DNS authoritative lookups: resoudre des noms de domaine public, pas uniquement les fichiers de zone.
+- Les mettre en cache pour reduire le temps de réponse.
+- Raft Leader forwarding: tous les noeuds follower forward les nouvelles données au leader.
 ```
