@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/maxdrc/dns-raft/store"
 	"github.com/miekg/dns"
+	"github.com/mxdec/dns-raft/store"
 )
 
 type dnsHandler struct {
